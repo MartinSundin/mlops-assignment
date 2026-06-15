@@ -20,6 +20,7 @@ from pathlib import Path
 
 import httpx
 
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_EVAL_FILE = ROOT / "evals" / "eval_set.jsonl"
 DEFAULT_OUT_FILE = ROOT / "results" / "eval_baseline.json"

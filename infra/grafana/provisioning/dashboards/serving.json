@@ -30,6 +30,12 @@
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "vllm:num_requests_running",
           "legendFormat": "running"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "vllm:num_requests_waiting",
+          "legendFormat": "waiting"
         }
       ],
       "fieldConfig": {
@@ -70,6 +76,157 @@
         "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom" },
         "tooltip": { "mode": "multi", "sort": "desc" }
       }
+    },
+    {
+    "id": 3,
+    "type": "timeseries",
+    "title": "Latency",
+    "description": "Compares Time to First Token (Prefill) vs Inter-Token Latency (Decoding) to isolate where in the request lifecycle delays occur.",
+    "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+    "datasource": { "type": "prometheus", "uid": "prometheus" },
+    "targets": [
+      {
+        "refId": "A",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "histogram_quantile(0.99, sum(rate(vllm:time_to_first_token_seconds_bucket[1m])) by (le))",
+        "legendFormat": "P99 TTFT (Prefill Stage)"
+      },
+      {
+        "refId": "B",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "histogram_quantile(0.99, sum(rate(vllm:inter_token_latency_seconds_bucket[1m])) by (le))",
+        "legendFormat": "P99 ITL (Decoding Stage)"
+      },
+      {
+        "refId": "C",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "histogram_quantile(0.99, sum(rate(vllm:request_latency_seconds_bucket[1m])) by (le))",
+        "legendFormat": "P99 E2E Request Latency"
+      },
+      {
+        "refId": "D",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "histogram_quantile(0.50, sum(rate(vllm:time_to_first_token_seconds_bucket[1m])) by (le))",
+        "legendFormat": "P50 TTFT (Prefill Stage)"
+      },
+      {
+        "refId": "E",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "histogram_quantile(0.50, sum(rate(vllm:inter_token_latency_seconds_bucket[1m])) by (le))",
+        "legendFormat": "P50 ITL (Decoding Stage)"
+      },
+      {
+        "refId": "F",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "histogram_quantile(0.50, sum(rate(vllm:request_latency_seconds_bucket[1m])) by (le))",
+        "legendFormat": "P50 E2E Request Latency"
+      }
+    ],
+    "fieldConfig": {
+      "defaults": {
+        "unit": "s",
+        "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 }
+      },
+      "overrides": []
+    },
+    "options": {
+      "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom" },
+      "tooltip": { "mode": "multi", "sort": "desc" }
     }
+  },
+  {
+    "id": 4,
+    "type": "timeseries",
+    "title": "Throughput",
+    "description": "Monitors total volume metrics: active generation rates, input processing, queue backlogs, and total served request completions.",
+    "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+    "datasource": { "type": "prometheus", "uid": "prometheus" },
+    "targets": [
+      {
+        "refId": "A",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "sum(rate(vllm:generation_tokens_total[1m]))",
+        "legendFormat": "Tokens Out / sec"
+      },
+      {
+        "refId": "B",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "sum(rate(vllm:prompt_tokens_total[1m]))",
+        "legendFormat": "Tokens In / sec"
+      },
+      {
+        "refId": "C",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "sum(rate(vllm:num_requests_total[1m]))",
+        "legendFormat": "Requests Served / sec"
+      },
+      {
+        "refId": "D",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "vllm:num_requests_waiting",
+        "legendFormat": "Queue Length (Waiting)"
+      }
+    ],
+    "fieldConfig": {
+      "defaults": {
+        "unit": "ops",
+        "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 }
+      },
+      "overrides": [
+        {
+          "matcher": { "id": "byName", "options": "Queue Length (Waiting)" },
+          "properties": [
+            { "id": "unit", "value": "none" },
+            { "id": "custom.lineInterpolation", "value": "stepAfter" }
+          ]
+        }
+      ]
+    },
+    "options": {
+      "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom" },
+      "tooltip": { "mode": "multi", "sort": "desc" }
+    }
+  },
+  {
+    "id": 5,
+    "type": "timeseries",
+    "title": "KV Cache",
+    "description": "Tracks available hardware VRAM headroom. If cache usage reaches 1.0 and swapped requests rise, the engine is context-thrashing.",
+    "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+    "datasource": { "type": "prometheus", "uid": "prometheus" },
+    "targets": [
+      {
+        "refId": "A",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "rate(vllm:num_requests_running[5m])",
+        "legendFormat": "Active Concurrency Slots"
+      },
+      {
+        "refId": "B",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "expr": "rate(vllm:num_requests_swapped[5m])",
+        "legendFormat": "Memory Exhaustion Evictions"
+      }
+    ],
+    "fieldConfig": {
+      "defaults": {
+        "unit": "percentunit",
+        "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 5 }
+      },
+      "overrides": [
+        {
+          "matcher": { "id": "byName", "options": "Swapped Requests (Evicted to CPU RAM)" },
+          "properties": [
+            { "id": "unit", "value": "none" },
+            { "id": "custom.drawStyle", "value": "bars" }
+          ]
+        }
+      ]
+    },
+    "options": {
+      "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom" },
+      "tooltip": { "mode": "multi", "sort": "desc" }
+    }
+  }
   ]
 }
